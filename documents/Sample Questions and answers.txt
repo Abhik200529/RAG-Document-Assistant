@@ -1,0 +1,62 @@
+Question: What is Artificial Intelligence?
+Answer: Artificial Intelligence, also called AI, is a field of computer science that focuses on creating systems capable of performing tasks that normally require human intelligence. These tasks may include understanding language, recognizing images, making decisions, solving problems, and learning from data.
+
+Question: What is Machine Learning?
+Answer: Machine Learning is a subset of Artificial Intelligence. It allows computer systems to learn patterns from data and improve their performance without being explicitly programmed for every possible situation.
+
+Question: What is Deep Learning?
+Answer: Deep Learning is a specialized area of Machine Learning that uses artificial neural networks with multiple layers. It is commonly used for tasks such as image recognition, speech processing, natural language processing, and recommendation systems.
+
+Question: What is Python?
+Answer: Python is a popular high-level programming language known for its simple and readable syntax. It is widely used in web development, data science, automation, machine learning, artificial intelligence, and scientific computing.
+
+Question: What is a database?
+Answer: A database is an organized collection of information that can be stored, managed, searched, and updated efficiently. Examples of database systems include MySQL, PostgreSQL, MongoDB, and SQLite.
+
+Question: What is cloud computing?
+Answer: Cloud computing is the delivery of computing services such as servers, storage, databases, networking, and software over the internet. It allows users and businesses to access computing resources without maintaining all the physical infrastructure themselves.
+
+Question: What is cybersecurity?
+Answer: Cybersecurity is the practice of protecting computers, networks, software, and information from unauthorized access, attacks, damage, or theft. Common cybersecurity techniques include encryption, firewalls, authentication, antivirus software, and secure passwords.
+
+Question: What is the capital of India?
+Answer: The capital of India is New Delhi.
+
+Question: What is the largest planet in the Solar System?
+Answer: Jupiter is the largest planet in the Solar System.
+
+Question: What is photosynthesis?
+Answer: Photosynthesis is the process through which green plants use sunlight, carbon dioxide, and water to produce food in the form of glucose. Oxygen is released as a by-product of this process.
+
+Question: What is an operating system?
+Answer: An operating system is system software that manages computer hardware and software resources. Examples include Windows, Linux, macOS, Android, and iOS.
+
+Question: What is HTML?
+Answer: HTML stands for HyperText Markup Language. It is used to define the structure and content of web pages, including headings, paragraphs, images, links, forms, and other elements.
+
+Question: What is CSS?
+Answer: CSS stands for Cascading Style Sheets. It is used to control the appearance and layout of HTML elements, including colors, fonts, spacing, positioning, and responsive design.
+
+Question: What is JavaScript?
+Answer: JavaScript is a programming language commonly used to add interactive behavior to websites. It can respond to button clicks, modify web page content, communicate with servers, validate forms, and create dynamic user interfaces.
+
+Question: What is FastAPI?
+Answer: FastAPI is a modern Python web framework used for building APIs. It provides automatic API documentation, request validation, asynchronous support, and high performance.
+
+Question: What is FAISS?
+Answer: FAISS is a library developed for efficient similarity searching and clustering of dense numerical vectors. It is commonly used in artificial intelligence applications to search embedding vectors quickly.
+
+Question: What is an embedding?
+Answer: An embedding is a numerical representation of information such as text, images, or other data. Text with similar meaning tends to have embeddings that are closer together in vector space.
+
+Question: What is Retrieval-Augmented Generation?
+Answer: Retrieval-Augmented Generation, commonly called RAG, is an AI technique that combines information retrieval with a language model. The system first retrieves relevant information from a knowledge source and then provides that information to a language model to generate a more context-aware answer.
+
+Question: What is a vector database?
+Answer: A vector database stores numerical vectors known as embeddings and allows applications to search for vectors that are similar to a query vector. Vector databases are frequently used in semantic search and RAG systems.
+
+Question: What is Ollama?
+Answer: Ollama is a tool that allows large language models to be downloaded and run locally on a computer. It can be used to run models such as Llama and connect them to local AI applications.
+
+Question: What is the purpose of chunking in a RAG system?
+Answer: Chunking divides a large document into smaller sections before embeddings are generated. This makes retrieval more efficient and helps the system identify the specific parts of a document that are most relevant to a user's question.

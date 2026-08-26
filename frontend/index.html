@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>RAG Document Assistant</title>
+
+    <link
+        rel="stylesheet"
+        href="./style.css"
+    >
+</head>
+
+
+<body>
+
+    <div class="app">
+
+        <!-- =================================================
+             SIDEBAR
+        ================================================== -->
+
+        <aside class="sidebar">
+
+            <!-- Logo -->
+
+            <div class="logo">
+
+                <div class="logo-icon">
+                    AI
+                </div>
+
+                <div class="logo-text">
+
+                    <h2>
+                        RAG Assistant
+                    </h2>
+
+                    <p>
+                        Document Intelligence
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- Upload Section -->
+
+            <div class="upload-section">
+
+                <h3>
+                    Upload Document
+                </h3>
+
+                <p class="upload-description">
+                    Upload a PDF or TXT document and ask questions about it.
+                </p>
+
+
+                <!-- File Chooser -->
+
+                <label
+                    for="fileInput"
+                    class="file-label"
+                >
+
+                    <span class="file-icon">
+                        📄
+                    </span>
+
+                    <span>
+                        Choose Document
+                    </span>
+
+                </label>
+
+
+                <input
+                    type="file"
+                    id="fileInput"
+                    accept=".pdf,.txt"
+                >
+
+
+                <!-- Upload Button -->
+
+                <button
+                    type="button"
+                    id="uploadButton"
+                    class="upload-button"
+                >
+                    Upload Document
+                </button>
+
+
+                <!-- Temporary / Detailed Upload Status -->
+
+                <div
+                    id="uploadStatus"
+                    class="upload-status"
+                >
+                    Select a document to begin.
+                </div>
+
+
+                <!-- PERMANENT DOCUMENT STATUS -->
+
+                <div
+                    id="documentStatus"
+                    class="document-status"
+                >
+                    No document uploaded yet.
+                </div>
+
+            </div>
+
+
+            <!-- Supported Files -->
+
+            <div class="supported-files">
+
+                <h4>
+                    Supported Files
+                </h4>
+
+                <div class="file-types">
+
+                    <span class="file-type">
+                        PDF
+                    </span>
+
+                    <span class="file-type">
+                        TXT
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <!-- System Status -->
+
+            <div class="system-info">
+
+                <span class="status-dot"></span>
+
+                <div>
+
+                    <strong>
+                        System Ready
+                    </strong>
+
+                    <small>
+                        FastAPI + FAISS + Llama
+                    </small>
+
+                </div>
+
+            </div>
+
+        </aside>
+
+
+
+        <!-- =================================================
+             MAIN CONTENT
+        ================================================== -->
+
+        <main class="main-content">
+
+
+            <!-- Header -->
+
+            <header class="chat-header">
+
+                <div>
+
+                    <h1>
+                        RAG Document Assistant
+                    </h1>
+
+                    <p>
+                        Ask questions about your uploaded documents
+                    </p>
+
+                </div>
+
+
+                <div
+                    id="connectionStatus"
+                    class="connection-status"
+                >
+
+                    <span class="status-dot"></span>
+
+                    Backend Connected
+
+                </div>
+
+            </header>
+
+
+
+            <!-- =================================================
+                 CHAT AREA
+            ================================================== -->
+
+            <section
+                id="chatContainer"
+                class="chat-container"
+            >
+
+
+                <!-- Welcome Area -->
+
+                <div class="welcome">
+
+                    <div class="welcome-icon">
+                        🤖
+                    </div>
+
+                    <h2>
+                        Welcome to RAG Document Assistant
+                    </h2>
+
+                    <p>
+                        Upload a document from the left panel,
+                        then ask questions about its contents.
+                    </p>
+
+
+                    <div class="quick-questions">
+
+                        <button
+                            type="button"
+                            class="quick-question"
+                        >
+                            What is this document about?
+                        </button>
+
+
+                        <button
+                            type="button"
+                            class="quick-question"
+                        >
+                            Summarize the document
+                        </button>
+
+
+                        <button
+                            type="button"
+                            class="quick-question"
+                        >
+                            What are the main topics?
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+
+            <!-- =================================================
+                 QUESTION INPUT
+            ================================================== -->
+
+            <div class="chat-input-area">
+
+                <div class="input-wrapper">
+
+
+                    <!-- IMPORTANT:
+                         NO disabled ATTRIBUTE
+                    -->
+
+                    <input
+                        type="text"
+                        id="questionInput"
+                        class="question-input"
+                        placeholder="Ask a question about your document..."
+                        autocomplete="off"
+                    >
+
+
+                    <button
+                        type="button"
+                        id="sendButton"
+                        class="send-button"
+                        title="Send Question"
+                    >
+                        ➤
+                    </button>
+
+                </div>
+
+
+                <p class="input-hint">
+                    Press Enter to send your question
+                </p>
+
+            </div>
+
+        </main>
+
+    </div>
+
+
+    <script src="./script.js"></script>
+
+</body>
+
+</html>
