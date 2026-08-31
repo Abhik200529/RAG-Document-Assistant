@@ -1,9 +1,9 @@
 // ============================================================
-// RAG DOCUMENT ASSISTANT
-// COMPLETE FRONTEND JAVASCRIPT
+// CONFIG
 // ============================================================
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL =
+    "http://127.0.0.1:8000";
 
 
 // ============================================================
@@ -13,14 +13,47 @@ const API_URL = "http://127.0.0.1:8000";
 const fileInput =
     document.getElementById("fileInput");
 
+const dropZone =
+    document.getElementById("dropZone");
+
 const uploadButton =
     document.getElementById("uploadButton");
 
 const uploadStatus =
     document.getElementById("uploadStatus");
 
-const documentStatus =
-    document.getElementById("documentStatus");
+const selectedFileBox =
+    document.getElementById("selectedFileBox");
+
+const selectedFileName =
+    document.getElementById("selectedFileName");
+
+const selectedFileSize =
+    document.getElementById("selectedFileSize");
+
+const documentCard =
+    document.getElementById("documentCard");
+
+const documentName =
+    document.getElementById("documentName");
+
+const documentType =
+    document.getElementById("documentType");
+
+const documentChunks =
+    document.getElementById("documentChunks");
+
+const backendText =
+    document.getElementById("backendText");
+
+const connectionStatus =
+    document.getElementById("connectionStatus");
+
+const chatContainer =
+    document.getElementById("chatContainer");
+
+const welcomeScreen =
+    document.getElementById("welcomeScreen");
 
 const questionInput =
     document.getElementById("questionInput");
@@ -28,66 +61,121 @@ const questionInput =
 const sendButton =
     document.getElementById("sendButton");
 
-const chatContainer =
-    document.getElementById("chatContainer");
+const themeToggle =
+    document.getElementById("themeToggle");
 
-const connectionStatus =
-    document.getElementById("connectionStatus");
-
-
-// ============================================================
-// APPLICATION STATE
-// ============================================================
-
-let uploadedDocument = null;
+const clearChatButton =
+    document.getElementById("clearChatButton");
 
 
 // ============================================================
-// INITIAL SETUP
+// STATE
+// ============================================================
+
+let selectedFile =
+    null;
+
+let uploadedDocument =
+    null;
+
+
+// ============================================================
+// INITIALIZATION
 // ============================================================
 
 document.addEventListener(
     "DOMContentLoaded",
-    function () {
+    () => {
 
-        console.log(
-            "RAG frontend started."
-        );
-
-        // IMPORTANT:
-        // Chat box always remains writable.
-
-        if (questionInput) {
-
-            questionInput.disabled = false;
-
-            questionInput.readOnly = false;
-
-        }
+        loadTheme();
 
         checkBackend();
+
+        setupDragAndDrop();
+
+        setupQuickQuestions();
+
+        questionInput.focus();
 
     }
 );
 
 
 // ============================================================
-// CHECK BACKEND
+// DARK MODE
+// ============================================================
+
+themeToggle.addEventListener(
+    "click",
+    () => {
+
+        document.body.classList.toggle(
+            "dark-mode"
+        );
+
+        const darkModeEnabled =
+            document.body.classList.contains(
+                "dark-mode"
+            );
+
+        themeToggle.textContent =
+            darkModeEnabled
+                ? "☀️"
+                : "🌙";
+
+        localStorage.setItem(
+            "ragTheme",
+            darkModeEnabled
+                ? "dark"
+                : "light"
+        );
+
+    }
+);
+
+
+function loadTheme() {
+
+    const savedTheme =
+        localStorage.getItem(
+            "ragTheme"
+        );
+
+
+    if (
+        savedTheme === "dark"
+    ) {
+
+        document.body.classList.add(
+            "dark-mode"
+        );
+
+        themeToggle.textContent =
+            "☀️";
+
+    }
+
+}
+
+
+// ============================================================
+// BACKEND CHECK
 // ============================================================
 
 async function checkBackend() {
 
     try {
 
-        const response = await fetch(
-            `${API_URL}/health`
-        );
+        const response =
+            await fetch(
+                `${API_URL}/health`
+            );
 
 
         if (!response.ok) {
 
             throw new Error(
-                "Backend unavailable."
+                "Backend unavailable"
             );
 
         }
@@ -97,23 +185,16 @@ async function checkBackend() {
             await response.json();
 
 
-        console.log(
-            "Health:",
-            data
-        );
+        backendText.textContent =
+            "Online";
 
 
-        if (connectionStatus) {
-
-            connectionStatus.innerHTML = `
-                <span class="status-dot"></span>
-                Backend Connected
-            `;
-
-        }
+        connectionStatus.innerHTML = `
+            <span class="online-dot"></span>
+            Connected
+        `;
 
 
-        // If backend already has an uploaded document
         if (
             data.document_uploaded &&
             data.document
@@ -123,7 +204,7 @@ async function checkBackend() {
                 data.document;
 
 
-            showPermanentDocumentStatus(
+            showExistingDocument(
                 data.document
             );
 
@@ -133,22 +214,17 @@ async function checkBackend() {
 
     catch (error) {
 
-        console.error(
-            "Backend connection error:",
-            error
-        );
+        backendText.textContent =
+            "Offline";
 
 
-        if (connectionStatus) {
+        connectionStatus.innerHTML = `
+            <span style="color:#ef4444">
+                ●
+            </span>
 
-            connectionStatus.innerHTML = `
-                <span style="color:#ef4444;">
-                    ●
-                </span>
-                Backend Offline
-            `;
-
-        }
+            Offline
+        `;
 
     }
 
@@ -156,18 +232,93 @@ async function checkBackend() {
 
 
 // ============================================================
-// FILE SELECTION
+// FILE INPUT
 // ============================================================
 
-if (fileInput) {
+fileInput.addEventListener(
+    "change",
+    () => {
 
-    fileInput.addEventListener(
-        "change",
-        function () {
+        if (
+            fileInput.files.length === 0
+        ) {
+
+            return;
+
+        }
+
+
+        handleSelectedFile(
+            fileInput.files[0]
+        );
+
+    }
+);
+
+
+// ============================================================
+// DRAG & DROP
+// ============================================================
+
+function setupDragAndDrop() {
+
+
+    [
+        "dragenter",
+        "dragover"
+    ].forEach(
+        eventName => {
+
+            dropZone.addEventListener(
+                eventName,
+                event => {
+
+                    event.preventDefault();
+
+                    dropZone.classList.add(
+                        "drag-active"
+                    );
+
+                }
+            );
+
+        }
+    );
+
+
+    [
+        "dragleave",
+        "drop"
+    ].forEach(
+        eventName => {
+
+            dropZone.addEventListener(
+                eventName,
+                event => {
+
+                    event.preventDefault();
+
+                    dropZone.classList.remove(
+                        "drag-active"
+                    );
+
+                }
+            );
+
+        }
+    );
+
+
+    dropZone.addEventListener(
+        "drop",
+        event => {
+
+            const files =
+                event.dataTransfer.files;
+
 
             if (
-                !this.files ||
-                this.files.length === 0
+                files.length === 0
             ) {
 
                 return;
@@ -175,50 +326,8 @@ if (fileInput) {
             }
 
 
-            const file =
-                this.files[0];
-
-
-            const extension =
-                file.name
-                    .substring(
-                        file.name.lastIndexOf(".")
-                    )
-                    .toLowerCase();
-
-
-            if (
-                extension !== ".pdf" &&
-                extension !== ".txt"
-            ) {
-
-                uploadStatus.innerHTML = `
-                    <div class="upload-error">
-                        ✕ Only PDF and TXT files are allowed.
-                    </div>
-                `;
-
-
-                fileInput.value =
-                    "";
-
-
-                return;
-
-            }
-
-
-            uploadStatus.innerHTML = `
-                Selected:
-                <strong>
-                    ${escapeHtml(file.name)}
-                </strong>
-            `;
-
-
-            console.log(
-                "Selected file:",
-                file.name
+            handleSelectedFile(
+                files[0]
             );
 
         }
@@ -228,39 +337,26 @@ if (fileInput) {
 
 
 // ============================================================
-// UPLOAD BUTTON
+// HANDLE FILE
 // ============================================================
 
-if (uploadButton) {
+function handleSelectedFile(
+    file
+) {
 
-    uploadButton.addEventListener(
-        "click",
-        function (event) {
+    const extension =
+        getExtension(
+            file.name
+        );
 
-            event.preventDefault();
-
-            uploadDocument();
-
-        }
-    );
-
-}
-
-
-// ============================================================
-// UPLOAD DOCUMENT
-// ============================================================
-
-async function uploadDocument() {
 
     if (
-        !fileInput ||
-        !fileInput.files ||
-        fileInput.files.length === 0
+        extension !== "pdf" &&
+        extension !== "txt"
     ) {
 
         showUploadError(
-            "Please choose a PDF or TXT document first."
+            "Only PDF and TXT files are supported."
         );
 
         return;
@@ -268,54 +364,141 @@ async function uploadDocument() {
     }
 
 
-    const file =
-        fileInput.files[0];
+    selectedFile =
+        file;
 
 
-    // --------------------------------------------------------
-    // Uploading UI
-    // --------------------------------------------------------
+    selectedFileName.textContent =
+        file.name;
+
+
+    selectedFileSize.textContent =
+        formatFileSize(
+            file.size
+        );
+
+
+    selectedFileBox.classList.remove(
+        "hidden"
+    );
+
+
+    uploadStatus.textContent =
+        "Document selected. Click Upload Document.";
+
+}
+
+
+// ============================================================
+// FILE SIZE
+// ============================================================
+
+function formatFileSize(
+    bytes
+) {
+
+    if (
+        bytes < 1024
+    ) {
+
+        return `${bytes} B`;
+
+    }
+
+
+    if (
+        bytes < 1024 * 1024
+    ) {
+
+        return `${(
+            bytes / 1024
+        ).toFixed(1)} KB`;
+
+    }
+
+
+    return `${(
+        bytes /
+        (1024 * 1024)
+    ).toFixed(1)} MB`;
+
+}
+
+
+// ============================================================
+// EXTENSION
+// ============================================================
+
+function getExtension(
+    filename
+) {
+
+    return filename
+        .split(".")
+        .pop()
+        .toLowerCase();
+
+}
+
+
+// ============================================================
+// UPLOAD
+// ============================================================
+
+uploadButton.addEventListener(
+    "click",
+    uploadDocument
+);
+
+
+async function uploadDocument() {
+
+    if (!selectedFile) {
+
+        showUploadError(
+            "Please select a document first."
+        );
+
+        return;
+
+    }
+
 
     uploadButton.disabled =
         true;
 
 
-    uploadButton.textContent =
-        "Processing...";
+    uploadButton.innerHTML =
+        "⏳ Processing Document...";
 
 
-    uploadStatus.innerHTML = `
-        ⏳ Processing
-        <strong>
-            ${escapeHtml(file.name)}
-        </strong>
-    `;
+    uploadStatus.textContent =
+        "Extracting text and creating embeddings...";
+
+
+    const formData =
+        new FormData();
+
+
+    formData.append(
+        "file",
+        selectedFile
+    );
 
 
     try {
-
-        const formData =
-            new FormData();
-
-
-        formData.append(
-            "file",
-            file
-        );
-
-
-        console.log(
-            "Uploading:",
-            file.name
-        );
-
 
         const response =
             await fetch(
                 `${API_URL}/upload`,
                 {
-                    method: "POST",
-                    body: formData
+
+                    method:
+                        "POST",
+
+                    body:
+                        formData
+
                 }
             );
 
@@ -324,129 +507,81 @@ async function uploadDocument() {
             await response.json();
 
 
-        console.log(
-            "Upload response:",
-            data
-        );
-
-
-        if (!response.ok) {
+        if (
+            !response.ok ||
+            !data.success
+        ) {
 
             throw new Error(
-                data.detail ||
                 data.error ||
-                "Upload failed."
+                "Upload failed"
             );
 
         }
 
-
-        if (!data.success) {
-
-            throw new Error(
-                data.error ||
-                "Upload failed."
-            );
-
-        }
-
-
-        // ====================================================
-        // SUCCESS
-        // ====================================================
 
         uploadedDocument =
             data.filename;
 
 
-        // This status DOES NOT disappear.
-
         uploadStatus.innerHTML = `
-            <div class="upload-success">
-
-                ✓ Upload successful
-
-                <br>
-
-                <strong>
-                    ${escapeHtml(data.filename)}
-                </strong>
-
-                <br>
-
-                ${data.number_of_chunks}
-                chunk(s) created
-
-            </div>
+            <span class="upload-success">
+                ✓ Document uploaded successfully
+            </span>
         `;
 
 
-        // Permanent second status
-
-        showPermanentDocumentStatus(
-            data.filename
+        documentCard.classList.remove(
+            "hidden"
         );
 
 
-        uploadButton.textContent =
-            "Document Uploaded ✓";
+        documentName.textContent =
+            data.filename;
 
 
-        uploadButton.disabled =
-            false;
+        documentType.textContent =
+            getExtension(
+                data.filename
+            ).toUpperCase();
 
 
-        // Keep textbox usable
-
-        questionInput.disabled =
-            false;
-
-        questionInput.readOnly =
-            false;
-
-        questionInput.placeholder =
-            "Ask a question about your document...";
+        documentChunks.textContent =
+            data.number_of_chunks;
 
 
-        // Hide welcome
+        uploadButton.innerHTML =
+            "✓ Document Ready";
+
+
         hideWelcome();
 
 
-        // Add assistant confirmation
-
         addAssistantMessage(
-            `Document "${data.filename}" has been uploaded and processed successfully. You can now ask questions about it.`
+            `Your document "${data.filename}" is ready. Ask me anything about it.`
         );
 
 
         questionInput.focus();
 
-
     }
 
     catch (error) {
-
-        console.error(
-            "UPLOAD ERROR:",
-            error
-        );
-
-
-        uploadedDocument =
-            null;
-
 
         showUploadError(
             error.message
         );
 
 
+        uploadButton.innerHTML =
+            "⬆ Upload Document";
+
+    }
+
+    finally {
+
         uploadButton.disabled =
             false;
-
-
-        uploadButton.textContent =
-            "Upload Document";
 
     }
 
@@ -454,34 +589,36 @@ async function uploadDocument() {
 
 
 // ============================================================
-// PERMANENT DOCUMENT STATUS
+// EXISTING DOCUMENT
 // ============================================================
 
-function showPermanentDocumentStatus(
+function showExistingDocument(
     filename
 ) {
 
-    if (!documentStatus) {
-
-        return;
-
-    }
+    documentCard.classList.remove(
+        "hidden"
+    );
 
 
-    documentStatus.innerHTML = `
+    documentName.textContent =
+        filename;
 
-        <div class="upload-success">
 
-            ✓ Document ready
+    documentType.textContent =
+        getExtension(
+            filename
+        ).toUpperCase();
 
-            <br>
 
-            <strong>
-                ${escapeHtml(filename)}
-            </strong>
+    documentChunks.textContent =
+        "-";
 
-        </div>
 
+    uploadStatus.innerHTML = `
+        <span class="upload-success">
+            ✓ Document already loaded
+        </span>
     `;
 
 }
@@ -495,21 +632,10 @@ function showUploadError(
     message
 ) {
 
-    if (!uploadStatus) {
-
-        return;
-
-    }
-
-
     uploadStatus.innerHTML = `
-
-        <div class="upload-error">
-
+        <span class="upload-error">
             ✕ ${escapeHtml(message)}
-
-        </div>
-
+        </span>
     `;
 
 }
@@ -519,53 +645,55 @@ function showUploadError(
 // SEND BUTTON
 // ============================================================
 
-if (sendButton) {
+sendButton.addEventListener(
+    "click",
+    sendQuestion
+);
 
-    sendButton.addEventListener(
-        "click",
-        function (event) {
+
+// ============================================================
+// ENTER / SHIFT ENTER
+// ============================================================
+
+questionInput.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.key === "Enter" &&
+            !event.shiftKey
+        ) {
 
             event.preventDefault();
 
             sendQuestion();
 
         }
-    );
 
-}
+    }
+);
 
 
 // ============================================================
-// ENTER KEY
+// AUTO-RESIZE TEXTAREA
 // ============================================================
 
-if (questionInput) {
+questionInput.addEventListener(
+    "input",
+    () => {
 
-    // Always writable
-
-    questionInput.disabled =
-        false;
+        questionInput.style.height =
+            "auto";
 
 
-    questionInput.addEventListener(
-        "keydown",
-        function (event) {
+        questionInput.style.height =
+            `${Math.min(
+                questionInput.scrollHeight,
+                120
+            )}px`;
 
-            if (
-                event.key === "Enter" &&
-                !event.shiftKey
-            ) {
-
-                event.preventDefault();
-
-                sendQuestion();
-
-            }
-
-        }
-    );
-
-}
+    }
+);
 
 
 // ============================================================
@@ -574,107 +702,65 @@ if (questionInput) {
 
 async function sendQuestion() {
 
-    if (!questionInput) {
-
-        return;
-
-    }
-
-
     const question =
         questionInput.value.trim();
 
 
-    // --------------------------------------------------------
-    // Empty
-    // --------------------------------------------------------
-
     if (!question) {
-
-        questionInput.focus();
 
         return;
 
     }
 
-
-    // --------------------------------------------------------
-    // No document
-    // --------------------------------------------------------
 
     if (!uploadedDocument) {
 
+        hideWelcome();
+
+
         addAssistantMessage(
-            "Please upload a document before asking a question."
+            "Please upload a PDF or TXT document first."
         );
 
-
-        questionInput.focus();
 
         return;
 
     }
 
 
-    // --------------------------------------------------------
-    // Hide welcome
-    // --------------------------------------------------------
-
     hideWelcome();
 
-
-    // --------------------------------------------------------
-    // Add user message
-    // --------------------------------------------------------
 
     addUserMessage(
         question
     );
 
 
-    // Clear input
-
     questionInput.value =
         "";
 
 
-    // IMPORTANT:
-    // textbox remains enabled
+    questionInput.style.height =
+        "auto";
 
-    questionInput.disabled =
-        false;
-
-
-    // Temporarily disable only button
 
     sendButton.disabled =
         true;
 
 
-    // --------------------------------------------------------
-    // Loading message
-    // --------------------------------------------------------
-
-    const loadingMessage =
-        addAssistantMessage(
-            "Thinking..."
-        );
+    const typingMessage =
+        addTypingIndicator();
 
 
     try {
-
-        console.log(
-            "Sending question:",
-            question
-        );
-
 
         const response =
             await fetch(
                 `${API_URL}/ask`,
                 {
 
-                    method: "POST",
+                    method:
+                        "POST",
 
                     headers: {
 
@@ -684,12 +770,12 @@ async function sendQuestion() {
                     },
 
                     body:
-                        JSON.stringify(
-                            {
-                                question:
-                                    question
-                            }
-                        )
+                        JSON.stringify({
+
+                            question:
+                                question
+
+                        })
 
                 }
             );
@@ -699,85 +785,32 @@ async function sendQuestion() {
             await response.json();
 
 
-        console.log(
-            "Ask response:",
-            data
-        );
+        typingMessage.remove();
 
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.detail ||
-                data.error ||
-                "Question request failed."
-            );
-
-        }
-
-
-        if (!data.success) {
-
-            throw new Error(
-                data.error ||
-                "Could not answer the question."
-            );
-
-        }
-
-
-        // Remove loading
-
-        if (loadingMessage) {
-
-            loadingMessage.remove();
-
-        }
-
-
-        // ----------------------------------------------------
-        // Display Llama answer
-        // ----------------------------------------------------
-
-        if (data.answer) {
-
-            addAssistantMessage(
-                data.answer
-            );
-
-        }
-
-
-        // ----------------------------------------------------
-        // Display retrieved sources
-        // ----------------------------------------------------
 
         if (
-            data.results &&
-            data.results.length > 0
+            !response.ok ||
+            !data.success
         ) {
 
-            addSearchResults(
-                data.results
+            throw new Error(
+                data.error ||
+                "Unable to answer the question."
             );
 
         }
+
+
+        addAssistantMessage(
+            data.answer,
+            data.results || []
+        );
 
     }
 
     catch (error) {
 
-        console.error(
-            "QUESTION ERROR:",
-            error
-        );
-
-
-        if (loadingMessage) {
-
-            loadingMessage.remove();
-
-        }
+        typingMessage.remove();
 
 
         addAssistantMessage(
@@ -787,18 +820,6 @@ async function sendQuestion() {
     }
 
     finally {
-
-        // ----------------------------------------------------
-        // Keep textbox functional
-        // ----------------------------------------------------
-
-        questionInput.disabled =
-            false;
-
-
-        questionInput.readOnly =
-            false;
-
 
         sendButton.disabled =
             false;
@@ -816,15 +837,8 @@ async function sendQuestion() {
 // ============================================================
 
 function addUserMessage(
-    message
+    text
 ) {
-
-    if (!chatContainer) {
-
-        return;
-
-    }
-
 
     const wrapper =
         document.createElement(
@@ -836,23 +850,21 @@ function addUserMessage(
         "message user-message";
 
 
-    const bubble =
-        document.createElement(
-            "div"
-        );
+    wrapper.innerHTML = `
 
+        <div class="message-content">
 
-    bubble.className =
-        "message-bubble";
+            <div class="message-bubble">
+                ${escapeHtml(text)}
+            </div>
 
+            <div class="message-meta">
+                You • ${getCurrentTime()}
+            </div>
 
-    bubble.textContent =
-        message;
+        </div>
 
-
-    wrapper.appendChild(
-        bubble
-    );
+    `;
 
 
     chatContainer.appendChild(
@@ -860,7 +872,7 @@ function addUserMessage(
     );
 
 
-    scrollChatToBottom();
+    scrollToBottom();
 
 }
 
@@ -870,15 +882,9 @@ function addUserMessage(
 // ============================================================
 
 function addAssistantMessage(
-    message
+    text,
+    sources = []
 ) {
-
-    if (!chatContainer) {
-
-        return null;
-
-    }
-
 
     const wrapper =
         document.createElement(
@@ -890,6 +896,16 @@ function addAssistantMessage(
         "message assistant-message";
 
 
+    const messageContent =
+        document.createElement(
+            "div"
+        );
+
+
+    messageContent.className =
+        "message-content";
+
+
     const bubble =
         document.createElement(
             "div"
@@ -901,11 +917,178 @@ function addAssistantMessage(
 
 
     bubble.textContent =
-        message;
+        text;
+
+
+    messageContent.appendChild(
+        bubble
+    );
+
+
+    // ========================================================
+    // META
+    // ========================================================
+
+    const meta =
+        document.createElement(
+            "div"
+        );
+
+
+    meta.className =
+        "message-meta";
+
+
+    meta.textContent =
+        `AI Assistant • ${getCurrentTime()}`;
+
+
+    messageContent.appendChild(
+        meta
+    );
+
+
+    // ========================================================
+    // ACTIONS
+    // ========================================================
+
+    const actions =
+        document.createElement(
+            "div"
+        );
+
+
+    actions.className =
+        "message-actions";
+
+
+    // COPY
+
+    const copyButton =
+        document.createElement(
+            "button"
+        );
+
+
+    copyButton.className =
+        "mini-button hover-pop";
+
+
+    copyButton.textContent =
+        "📋 Copy";
+
+
+    copyButton.addEventListener(
+        "click",
+        async () => {
+
+            await navigator.clipboard.writeText(
+                text
+            );
+
+
+            copyButton.textContent =
+                "✓ Copied";
+
+
+            setTimeout(
+                () => {
+
+                    copyButton.textContent =
+                        "📋 Copy";
+
+                },
+                1200
+            );
+
+        }
+    );
+
+
+    actions.appendChild(
+        copyButton
+    );
+
+
+    // ========================================================
+    // SOURCES BUTTON
+    // ========================================================
+
+    if (
+        sources.length > 0
+    ) {
+
+        const sourceButton =
+            document.createElement(
+                "button"
+            );
+
+
+        sourceButton.className =
+            "mini-button hover-pop";
+
+
+        sourceButton.textContent =
+            `📚 View Sources (${sources.length})`;
+
+
+        actions.appendChild(
+            sourceButton
+        );
+
+
+        const sourcesBox =
+            createSourcesBox(
+                sources
+            );
+
+
+        sourceButton.addEventListener(
+            "click",
+            () => {
+
+                sourcesBox.classList.toggle(
+                    "show"
+                );
+
+
+                const visible =
+                    sourcesBox.classList.contains(
+                        "show"
+                    );
+
+
+                sourceButton.textContent =
+                    visible
+                        ? "▲ Hide Sources"
+                        : `📚 View Sources (${sources.length})`;
+
+            }
+        );
+
+
+        messageContent.appendChild(
+            actions
+        );
+
+
+        messageContent.appendChild(
+            sourcesBox
+        );
+
+    }
+
+    else {
+
+        messageContent.appendChild(
+            actions
+        );
+
+    }
 
 
     wrapper.appendChild(
-        bubble
+        messageContent
     );
 
 
@@ -914,7 +1097,7 @@ function addAssistantMessage(
     );
 
 
-    scrollChatToBottom();
+    scrollToBottom();
 
 
     return wrapper;
@@ -923,19 +1106,88 @@ function addAssistantMessage(
 
 
 // ============================================================
-// SEARCH RESULTS
+// SOURCES
 // ============================================================
 
-function addSearchResults(
-    results
+function createSourcesBox(
+    sources
 ) {
 
-    if (!chatContainer) {
+    const box =
+        document.createElement(
+            "div"
+        );
 
-        return;
 
-    }
+    box.className =
+        "sources-box";
 
+
+    sources.forEach(
+        (
+            source,
+            index
+        ) => {
+
+            const card =
+                document.createElement(
+                    "div"
+                );
+
+
+            card.className =
+                "source-card";
+
+
+            const similarity =
+                source.score !== undefined
+                    ? Number(
+                        source.score
+                    ).toFixed(3)
+                    : "N/A";
+
+
+            card.innerHTML = `
+
+                <div class="source-header">
+
+                    <span>
+                        Source ${index + 1}
+                    </span>
+
+                    <span>
+                        Similarity ${similarity}
+                    </span>
+
+                </div>
+
+                <div class="source-content">
+                    ${escapeHtml(
+                        source.chunk || ""
+                    )}
+                </div>
+
+            `;
+
+
+            box.appendChild(
+                card
+            );
+
+        }
+    );
+
+
+    return box;
+
+}
+
+
+// ============================================================
+// TYPING INDICATOR
+// ============================================================
+
+function addTypingIndicator() {
 
     const wrapper =
         document.createElement(
@@ -944,113 +1196,28 @@ function addSearchResults(
 
 
     wrapper.className =
-        "search-results";
+        "message assistant-message";
 
 
-    const heading =
-        document.createElement(
-            "div"
-        );
+    wrapper.innerHTML = `
 
+        <div class="message-content">
 
-    heading.className =
-        "search-results-heading";
+            <div class="message-bubble">
 
+                <div class="typing-indicator">
 
-    heading.textContent =
-        "Relevant document sections";
+                    <span></span>
+                    <span></span>
+                    <span></span>
 
+                </div>
 
-    wrapper.appendChild(
-        heading
-    );
+            </div>
 
+        </div>
 
-    results.forEach(
-        function (
-            result,
-            index
-        ) {
-
-            const resultBox =
-                document.createElement(
-                    "div"
-                );
-
-
-            resultBox.className =
-                "search-result";
-
-
-            // ------------------------------------------------
-            // Header
-            // ------------------------------------------------
-
-            const header =
-                document.createElement(
-                    "div"
-                );
-
-
-            header.className =
-                "search-result-header";
-
-
-            let similarityText =
-                "";
-
-
-            if (
-                result.score !== undefined
-            ) {
-
-                similarityText =
-                    ` • Similarity: ${Number(
-                        result.score
-                    ).toFixed(4)}`;
-
-            }
-
-
-            header.textContent =
-                `Source ${index + 1}${similarityText}`;
-
-
-            // ------------------------------------------------
-            // Chunk text
-            // ------------------------------------------------
-
-            const chunk =
-                document.createElement(
-                    "div"
-                );
-
-
-            chunk.className =
-                "search-result-chunk";
-
-
-            chunk.textContent =
-                result.chunk ||
-                "No content available.";
-
-
-            resultBox.appendChild(
-                header
-            );
-
-
-            resultBox.appendChild(
-                chunk
-            );
-
-
-            wrapper.appendChild(
-                resultBox
-            );
-
-        }
-    );
+    `;
 
 
     chatContainer.appendChild(
@@ -1058,7 +1225,10 @@ function addSearchResults(
     );
 
 
-    scrollChatToBottom();
+    scrollToBottom();
+
+
+    return wrapper;
 
 }
 
@@ -1067,46 +1237,80 @@ function addSearchResults(
 // QUICK QUESTIONS
 // ============================================================
 
-document
-    .querySelectorAll(
-        ".quick-question"
-    )
-    .forEach(
-        function (button) {
+function setupQuickQuestions() {
 
-            button.addEventListener(
-                "click",
-                function () {
+    document
+        .querySelectorAll(
+            ".quick-question"
+        )
+        .forEach(
+            button => {
 
-                    const question =
-                        this.textContent.trim();
+                button.addEventListener(
+                    "click",
+                    () => {
 
-
-                    questionInput.disabled =
-                        false;
+                        questionInput.value =
+                            button.textContent.trim();
 
 
-                    questionInput.value =
-                        question;
+                        questionInput.focus();
 
 
-                    questionInput.focus();
+                        if (
+                            uploadedDocument
+                        ) {
 
+                            sendQuestion();
 
-                    // If document exists,
-                    // immediately submit the question.
-
-                    if (uploadedDocument) {
-
-                        sendQuestion();
+                        }
 
                     }
+                );
 
-                }
+            }
+        );
+
+}
+
+
+// ============================================================
+// CLEAR CHAT
+// ============================================================
+
+clearChatButton.addEventListener(
+    "click",
+    () => {
+
+        const messages =
+            chatContainer.querySelectorAll(
+                ".message"
             );
 
-        }
-    );
+
+        messages.forEach(
+            message =>
+                message.remove()
+        );
+
+
+        welcomeScreen.classList.remove(
+            "hidden"
+        );
+
+
+        welcomeScreen.style.display =
+            "block";
+
+
+        questionInput.value =
+            "";
+
+
+        questionInput.focus();
+
+    }
+);
 
 
 // ============================================================
@@ -1115,40 +1319,53 @@ document
 
 function hideWelcome() {
 
-    const welcome =
-        document.querySelector(
-            ".welcome"
-        );
-
-
-    if (welcome) {
-
-        welcome.style.display =
-            "none";
-
-    }
+    welcomeScreen.style.display =
+        "none";
 
 }
 
 
 // ============================================================
-// SCROLL CHAT
+// TIME
 // ============================================================
 
-function scrollChatToBottom() {
+function getCurrentTime() {
 
-    if (!chatContainer) {
+    return new Date()
+        .toLocaleTimeString(
+            [],
+            {
 
-        return;
+                hour:
+                    "2-digit",
 
-    }
+                minute:
+                    "2-digit"
 
+            }
+        );
+
+}
+
+
+// ============================================================
+// SCROLL
+// ============================================================
+
+function scrollToBottom() {
 
     setTimeout(
-        function () {
+        () => {
 
-            chatContainer.scrollTop =
-                chatContainer.scrollHeight;
+            chatContainer.scrollTo({
+
+                top:
+                    chatContainer.scrollHeight,
+
+                behavior:
+                    "smooth"
+
+            });
 
         },
         50
@@ -1158,11 +1375,11 @@ function scrollChatToBottom() {
 
 
 // ============================================================
-// HTML ESCAPE
+// ESCAPE HTML
 // ============================================================
 
 function escapeHtml(
-    value
+    text
 ) {
 
     const div =
@@ -1172,66 +1389,9 @@ function escapeHtml(
 
 
     div.textContent =
-        String(value);
+        String(text);
 
 
     return div.innerHTML;
 
 }
-
-
-// ============================================================
-// DEBUG
-// ============================================================
-
-console.log(
-    "===================================="
-);
-
-console.log(
-    "RAG frontend loaded"
-);
-
-console.log(
-    "API:",
-    API_URL
-);
-
-console.log(
-    "fileInput:",
-    fileInput
-);
-
-console.log(
-    "uploadButton:",
-    uploadButton
-);
-
-console.log(
-    "uploadStatus:",
-    uploadStatus
-);
-
-console.log(
-    "documentStatus:",
-    documentStatus
-);
-
-console.log(
-    "questionInput:",
-    questionInput
-);
-
-console.log(
-    "sendButton:",
-    sendButton
-);
-
-console.log(
-    "chatContainer:",
-    chatContainer
-);
-
-console.log(
-    "===================================="
-);
