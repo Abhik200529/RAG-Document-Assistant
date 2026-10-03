@@ -1,422 +1,398 @@
 from pathlib import Path
 
-from fastapi import FastAPI, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import (
+    FastAPI,
+    UploadFile,
+    File,
+    HTTPException
+)
+
+from fastapi.middleware.cors import (
+    CORSMiddleware
+)
+
 from pydantic import BaseModel
 
-from backend.document_processor import extract_text
-from backend.chunker import split_text
-from backend.embeddings import create_embeddings
+
+from backend.document_processor import (
+    extract_text
+)
+
+from backend.chunker import (
+    chunk_text
+)
+
+from backend.embeddings import (
+    create_embeddings
+)
+
 from backend.vector_store import (
     create_vector_index,
     search_vectors,
+    save_metadata,
+    load_metadata,
+    vector_index_exists
 )
-from backend.llm import generate_answer
+
+from backend.llm import (
+    generate_answer
+)
 
 
-# ============================================================
-# FASTAPI APPLICATION
-# ============================================================
+# -------------------------------------------------
+# Project paths
+# -------------------------------------------------
+
+PROJECT_ROOT = Path(
+    __file__
+).resolve().parent.parent
+
+DOCUMENTS_DIR = (
+    PROJECT_ROOT / "documents"
+)
+
+DOCUMENTS_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+
+# -------------------------------------------------
+# FastAPI application
+# -------------------------------------------------
 
 app = FastAPI(
-    title="RAG Document Assistant",
-    description="AI-powered document question answering using RAG",
-    version="1.0.0",
+    title="AI-Powered RAG Document Assistant",
+    description=(
+        "Upload PDF/TXT documents and ask "
+        "questions using RAG."
+    ),
+    version="1.0.0"
 )
 
 
-# ============================================================
+# -------------------------------------------------
 # CORS
-# ============================================================
+# -------------------------------------------------
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"]
 )
 
 
-# ============================================================
-# PROJECT PATHS
-# ============================================================
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-DOCUMENTS_DIR = BASE_DIR / "documents"
-VECTOR_DB_DIR = BASE_DIR / "vector_db"
-
-DOCUMENTS_DIR.mkdir(exist_ok=True)
-VECTOR_DB_DIR.mkdir(exist_ok=True)
-
-
-# ============================================================
-# APPLICATION STATE
-# ============================================================
-
-document_chunks = []
-current_document = None
-
-
-# Minimum cosine similarity we consider relevant.
-# Embeddings are normalized and FAISS uses inner product.
-MIN_SIMILARITY_SCORE = 0.25
-
-
-# ============================================================
-# REQUEST MODEL
-# ============================================================
+# -------------------------------------------------
+# Request model
+# -------------------------------------------------
 
 class QuestionRequest(BaseModel):
     question: str
 
 
-# ============================================================
-# HOME
-# ============================================================
+# -------------------------------------------------
+# Root endpoint
+# -------------------------------------------------
 
 @app.get("/")
-def home():
+def root():
+
     return {
-        "message": "RAG Document Assistant is running!",
-        "status": "online",
+        "message": (
+            "AI-Powered RAG Document "
+            "Assistant API is running."
+        )
     }
 
 
-# ============================================================
-# HEALTH CHECK
-# ============================================================
+# -------------------------------------------------
+# Health endpoint
+# -------------------------------------------------
 
 @app.get("/health")
 def health():
+
+    metadata = load_metadata()
+
+    uploaded = (
+        vector_index_exists()
+        and bool(metadata)
+    )
+
     return {
-        "backend": "connected",
-        "faiss": "available",
-        "llm": "ollama",
-        "document_uploaded": current_document is not None,
-        "document": current_document,
+        "status": "ok",
+        "backend": "online",
+        "document_uploaded": uploaded,
+        "document": (
+            metadata.get("filename")
+            if uploaded
+            else None
+        ),
+        "number_of_chunks": (
+            metadata.get(
+                "number_of_chunks",
+                0
+            )
+            if uploaded
+            else 0
+        )
     }
 
 
-# ============================================================
-# UPLOAD DOCUMENT
-# ============================================================
+# -------------------------------------------------
+# Upload endpoint
+# -------------------------------------------------
 
 @app.post("/upload")
-async def upload_document(file: UploadFile = File(...)):
-    global document_chunks
-    global current_document
+async def upload_document(
+    file: UploadFile = File(...)
+):
 
     try:
-        # ----------------------------------------------------
-        # Validate filename
-        # ----------------------------------------------------
 
         if not file.filename:
-            return {
-                "success": False,
-                "error": "No filename was provided.",
-            }
 
-        # ----------------------------------------------------
-        # Validate extension
-        # ----------------------------------------------------
+            raise HTTPException(
+                status_code=400,
+                detail="No filename was provided."
+            )
 
-        file_extension = Path(file.filename).suffix.lower()
+        # Prevent directory traversal
+        safe_filename = Path(
+            file.filename
+        ).name
 
-        allowed_extensions = [
+        extension = Path(
+            safe_filename
+        ).suffix.lower()
+
+        if extension not in [
             ".pdf",
-            ".txt",
-        ]
+            ".txt"
+        ]:
 
-        if file_extension not in allowed_extensions:
-            return {
-                "success": False,
-                "error": "Only PDF and TXT files are allowed.",
-            }
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Unsupported file type. "
+                    "Only PDF and TXT files are allowed."
+                )
+            )
 
-        # ----------------------------------------------------
-        # Read file
-        # ----------------------------------------------------
+        file_path = (
+            DOCUMENTS_DIR
+            / safe_filename
+        )
 
+        # Read uploaded file
         contents = await file.read()
 
         if not contents:
-            return {
-                "success": False,
-                "error": "The uploaded file is empty.",
-            }
 
-        # ----------------------------------------------------
-        # Save file
-        # ----------------------------------------------------
+            raise HTTPException(
+                status_code=400,
+                detail="The uploaded file is empty."
+            )
 
-        file_path = DOCUMENTS_DIR / file.filename
+        # Save document
+        with open(
+            file_path,
+            "wb"
+        ) as output_file:
 
-        with open(file_path, "wb") as saved_file:
-            saved_file.write(contents)
+            output_file.write(
+                contents
+            )
 
-        # ----------------------------------------------------
         # Extract text
-        # ----------------------------------------------------
-
-        extracted_text = extract_text(
-            str(file_path)
+        text = extract_text(
+            file_path
         )
 
-        if (
-            not extracted_text
-            or not extracted_text.strip()
-        ):
-            return {
-                "success": False,
-                "error": (
-                    "No readable text could be extracted "
-                    "from the document."
-                ),
-            }
+        if not text.strip():
 
-        # ----------------------------------------------------
-        # Split into chunks
-        # ----------------------------------------------------
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "No readable text was found "
+                    "in the document."
+                )
+            )
 
-        chunks = split_text(
-            extracted_text
+        # Create chunks
+        chunks = chunk_text(
+            text
         )
 
         if not chunks:
-            return {
-                "success": False,
-                "error": "No text chunks were created.",
-            }
 
-        # ----------------------------------------------------
-        # Generate embeddings
-        # ----------------------------------------------------
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Could not create document chunks."
+                )
+            )
 
+        # Create Ollama embeddings
         embeddings = create_embeddings(
             chunks
         )
 
-        # ----------------------------------------------------
-        # Store embeddings + chunks in FAISS
-        # ----------------------------------------------------
-
+        # Store embeddings in FAISS
         create_vector_index(
             embeddings,
-            chunks,
+            chunks
         )
 
-        # ----------------------------------------------------
-        # Save state
-        # ----------------------------------------------------
+        # Save document information
+        metadata = {
+            "filename": safe_filename,
+            "file_type": extension.replace(
+                ".",
+                ""
+            ).upper(),
+            "number_of_chunks": len(
+                chunks
+            ),
+            "characters": len(
+                text
+            )
+        }
 
-        document_chunks = chunks
-        current_document = file.filename
-
-        # ----------------------------------------------------
-        # Success response
-        # ----------------------------------------------------
+        save_metadata(
+            metadata
+        )
 
         return {
             "success": True,
-            "message": "File uploaded and processed successfully!",
-            "filename": file.filename,
-            "characters_extracted": len(extracted_text),
-            "number_of_chunks": len(chunks),
-            "embedding_shape": list(embeddings.shape),
-            "vector_database": "FAISS",
-            "status": "Document ready for questions",
-            "first_chunk": chunks[0],
+            "message": (
+                "Document uploaded and "
+                "processed successfully."
+            ),
+            "filename": safe_filename,
+            "file_type": metadata[
+                "file_type"
+            ],
+            "number_of_chunks": len(
+                chunks
+            ),
+            "characters": len(
+                text
+            )
         }
 
-    except Exception as error:
+    except HTTPException:
+        raise
+
+    except Exception as e:
+
         print(
-            "UPLOAD ERROR:",
-            error,
+            f"Upload error: {e}"
         )
 
-        return {
-            "success": False,
-            "error": str(error),
-        }
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 
-# ============================================================
-# ASK QUESTION
-# ============================================================
+# -------------------------------------------------
+# Ask endpoint
+# -------------------------------------------------
 
 @app.post("/ask")
-async def ask_question(
+def ask_question(
     request: QuestionRequest
 ):
-    global document_chunks
-    global current_document
 
     try:
-        # ----------------------------------------------------
-        # Get question
-        # ----------------------------------------------------
 
-        question = request.question.strip()
+        question = (
+            request.question.strip()
+        )
 
         if not question:
-            return {
-                "success": False,
-                "error": "Please enter a question.",
-            }
 
-        # ----------------------------------------------------
-        # Make sure a document was uploaded
-        # ----------------------------------------------------
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Question cannot be empty."
+                )
+            )
 
-        if current_document is None:
-            return {
-                "success": False,
-                "error": "Please upload a document first.",
-            }
+        if not vector_index_exists():
 
-        if not document_chunks:
-            return {
-                "success": False,
-                "error": "No document chunks are available.",
-            }
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Please upload a document first."
+                )
+            )
 
-        # ----------------------------------------------------
-        # Generate question embedding
-        # ----------------------------------------------------
-
+        # Convert question into embedding
         query_embedding = create_embeddings(
             [question]
         )
 
-        # ----------------------------------------------------
-        # FAISS search
-        # ----------------------------------------------------
-
-        search_output = search_vectors(
+        # Search FAISS
+        results = search_vectors(
             query_embedding,
-            top_k=3,
+            top_k=4
         )
 
-        if not search_output:
+        if not results:
+
             return {
                 "success": True,
-                "question": question,
                 "answer": (
                     "The information was not found "
                     "in the uploaded document."
                 ),
-                "results": [],
-                "document": current_document,
+                "results": []
             }
 
-        scores, indices = search_output
+        # Build context from retrieved chunks
+        context_parts = []
 
-        # ----------------------------------------------------
-        # Build retrieval results
-        # ----------------------------------------------------
-
-        results = []
-        context_chunks = []
-
-        for score, index in zip(
-            scores[0],
-            indices[0],
+        for number, result in enumerate(
+            results,
+            start=1
         ):
-            chunk_index = int(index)
-            similarity_score = float(score)
 
-            # Ignore invalid FAISS indexes
-            if chunk_index < 0:
-                continue
-
-            if chunk_index >= len(document_chunks):
-                continue
-
-            # Ignore very weak matches
-            if similarity_score < MIN_SIMILARITY_SCORE:
-                continue
-
-            chunk = document_chunks[
-                chunk_index
-            ]
-
-            results.append(
-                {
-                    "index": chunk_index,
-                    "score": similarity_score,
-                    "chunk": chunk,
-                }
+            context_parts.append(
+                f"[Document Chunk {number}]\n"
+                f"{result['chunk']}"
             )
-
-            context_chunks.append(
-                chunk
-            )
-
-        # ----------------------------------------------------
-        # Nothing relevant found
-        # ----------------------------------------------------
-
-        if not context_chunks:
-            return {
-                "success": True,
-                "question": question,
-                "answer": (
-                    "The information was not found "
-                    "in the uploaded document."
-                ),
-                "results": [],
-                "document": current_document,
-            }
-
-        # ----------------------------------------------------
-        # Build context for Llama
-        # ----------------------------------------------------
 
         context = "\n\n".join(
-            context_chunks
+            context_parts
         )
 
-        print(
-            "\nQUESTION:",
-            question,
-        )
-
-        print(
-            "\nRETRIEVED CONTEXT:\n",
-            context,
-        )
-
-        # ----------------------------------------------------
-        # Generate final RAG answer using Ollama
-        # ----------------------------------------------------
-
+        # Generate grounded answer
         answer = generate_answer(
             question,
-            context,
+            context
         )
-
-        # ----------------------------------------------------
-        # Return answer
-        # ----------------------------------------------------
 
         return {
             "success": True,
             "question": question,
             "answer": answer,
-            "results": results,
-            "document": current_document,
+            "results": results
         }
 
-    except Exception as error:
+    except HTTPException:
+        raise
+
+    except Exception as e:
+
         print(
-            "ASK ERROR:",
-            error,
+            f"Question answering error: {e}"
         )
 
-        return {
-            "success": False,
-            "error": str(error),
-        }
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )

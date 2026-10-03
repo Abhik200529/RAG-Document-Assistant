@@ -6,35 +6,29 @@ MODEL_NAME = "llama3.2:3b"
 
 def generate_answer(question, context):
     """
-    Generate an answer strictly from retrieved document context.
+    Generate an answer using only retrieved document context.
     """
 
     prompt = f"""
-You are a Retrieval-Augmented Generation document assistant.
+You are an AI document assistant.
 
-Answer the user's question using ONLY the DOCUMENT CONTEXT below.
+Your job is to answer the user's question using ONLY the
+information contained in the provided document context.
 
-Instructions:
+Rules:
 
-- Carefully read all of the provided context.
-- The context may contain question-and-answer pairs.
-- If the context contains information that answers the user's question,
-  provide that answer clearly.
-- You may rewrite the information into a natural sentence.
-- Do not require an exact wording match.
-- Do not use outside knowledge.
-- Do not invent facts.
-- Only say that information is missing when the context truly does not
-  contain enough information to answer.
+1. Use only the provided context.
+2. Do not use outside knowledge.
+3. Do not invent facts.
+4. Give a clear and concise answer.
+5. If the answer cannot be found in the context, respond exactly:
 
-If the answer is genuinely unavailable, reply exactly:
-
-The information was not found in the uploaded document.
+"The information was not found in the uploaded document."
 
 DOCUMENT CONTEXT:
-==================================================
+----------------------------------------
 {context}
-==================================================
+----------------------------------------
 
 USER QUESTION:
 {question}
@@ -46,35 +40,26 @@ ANSWER:
 
         response = ollama.chat(
             model=MODEL_NAME,
-
             messages=[
                 {
                     "role": "user",
                     "content": prompt
                 }
             ],
-
+            stream=False,
             options={
                 "temperature": 0.1
             }
         )
 
-        answer = (
-            response["message"]["content"]
-            .strip()
+        answer = response["message"]["content"]
+
+        return answer.strip()
+
+    except Exception as e:
+
+        print(
+            f"LLM generation error: {e}"
         )
 
-        if not answer:
-
-            return (
-                "The information was not found "
-                "in the uploaded document."
-            )
-
-        return answer
-
-    except Exception as error:
-
-        raise RuntimeError(
-            f"Ollama error: {error}"
-        )
+        raise

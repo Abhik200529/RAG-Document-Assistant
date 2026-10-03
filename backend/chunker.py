@@ -1,62 +1,74 @@
-def split_text(text, chunk_size=1000, overlap=150):
+def chunk_text(text, chunk_size=1000, overlap=150):
     """
-    Split text into chunks while trying to preserve paragraphs.
-    """
+    Split document text into overlapping chunks.
 
-    text = text.strip()
+    chunk_size:
+        Maximum approximate characters per chunk.
+
+    overlap:
+        Number of characters shared between consecutive chunks.
+    """
 
     if not text:
         return []
 
-    paragraphs = [
-        paragraph.strip()
-        for paragraph in text.split("\n\n")
-        if paragraph.strip()
-    ]
+    text = text.replace("\r\n", "\n").replace("\r", "\n").strip()
 
     chunks = []
-    current_chunk = ""
 
-    for paragraph in paragraphs:
+    start = 0
+    text_length = len(text)
 
-        # Paragraph fits inside current chunk
-        if len(current_chunk) + len(paragraph) + 2 <= chunk_size:
+    while start < text_length:
 
-            if current_chunk:
-                current_chunk += "\n\n"
+        end = min(start + chunk_size, text_length)
 
-            current_chunk += paragraph
+        # Try to end the chunk at a natural boundary.
+        if end < text_length:
 
-        else:
+            search_start = start + (chunk_size // 2)
 
-            # Save existing chunk
-            if current_chunk:
-                chunks.append(current_chunk.strip())
+            paragraph_break = text.rfind(
+                "\n\n",
+                search_start,
+                end
+            )
 
-            # Very large paragraph
-            if len(paragraph) > chunk_size:
+            sentence_break = text.rfind(
+                ". ",
+                search_start,
+                end
+            )
 
-                start = 0
+            space_break = text.rfind(
+                " ",
+                search_start,
+                end
+            )
 
-                while start < len(paragraph):
+            best_break = max(
+                paragraph_break,
+                sentence_break,
+                space_break
+            )
 
-                    end = start + chunk_size
+            if best_break > start:
+                end = best_break + 1
 
-                    chunk = paragraph[start:end]
+        chunk = text[start:end].strip()
 
-                    if chunk.strip():
-                        chunks.append(chunk.strip())
+        if chunk:
+            chunks.append(chunk)
 
-                    start += chunk_size - overlap
+        if end >= text_length:
+            break
 
-                current_chunk = ""
+        next_start = end - overlap
 
-            else:
+        # Safety against infinite loops
+        if next_start <= start:
+            next_start = end
 
-                current_chunk = paragraph
-
-    # Save final chunk
-    if current_chunk:
-        chunks.append(current_chunk.strip())
+        start = next_start
 
     return chunks
